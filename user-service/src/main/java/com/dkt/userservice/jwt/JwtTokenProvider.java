@@ -1,4 +1,4 @@
-package com.dkt.authservice.security.jwt;
+package com.dkt.userservice.jwt;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -8,9 +8,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.stream.Collectors;
+
+import static javax.crypto.Cipher.SECRET_KEY;
 
 @Component
 public class JwtTokenProvider {
@@ -42,17 +46,10 @@ public class JwtTokenProvider {
 
     // Tạo key để ký token từ chuỗi secret
     private Key key() {
+
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+
     }
 
-    public Boolean validateToken(String token) {
 
-        // 
-        // 1. cut and decode jwt
-        // 2. verify username and expired time of token
-        // 3. if token can be use, let user pass through, else break
-
-
-        return false;
-    }
 }
