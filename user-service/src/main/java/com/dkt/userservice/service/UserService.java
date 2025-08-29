@@ -1,9 +1,6 @@
 package com.dkt.userservice.service;
 
-import com.dkt.userservice.dto.ChangePasswordRequest;
-import com.dkt.userservice.dto.RegisterRequest;
-import com.dkt.userservice.dto.UpdateProfileRequest;
-import com.dkt.userservice.dto.UserDto;
+import com.dkt.userservice.dto.*;
 import com.dkt.userservice.entity.Role;
 import com.dkt.userservice.entity.User;
 import com.dkt.userservice.entity.UserRole;
@@ -72,7 +69,7 @@ public class UserService {
 
     }
 
-    // Hàm này sẽ lấy Role đơn giản hơn
+    // Hàm này lấy Role
     public List<Role> findRolesByUserId(Long userId) {
         List<UserRole> userRoles = userRoleRepository.findByUserId(userId);
         // Trích xuất danh sách roleId từ kết quả
@@ -86,7 +83,12 @@ public class UserService {
     @Transactional
     public User updateUserProfile(String email, UpdateProfileRequest request) {
         User user = findUserByEmail(email);
-        user.setFullName(request.getFullName());
+
+        // Chỉ cập nhật fullName nếu client có gửi nó lên (khác null)
+        if (request.getFullName() != null && !request.getFullName().isEmpty()) {
+            user.setFullName(request.getFullName());
+        }
+
         user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
@@ -125,5 +127,20 @@ public class UserService {
         dto.setRoles(roleNames);
 
         return dto;
+    }
+
+    public List<UserDto> findAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với ID: " + id));
+    }
+    public UserSimpleDto findSimpleUserByEmail(String email) {
+        User user = findUserByEmail(email); // Tái sử dụng hàm đã có
+        return new UserSimpleDto(user.getId(), user.getEmail(), user.getFullName());
     }
 }

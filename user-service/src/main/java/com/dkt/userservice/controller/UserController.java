@@ -1,15 +1,14 @@
 package com.dkt.userservice.controller;
 
-import com.dkt.userservice.dto.ChangePasswordRequest;
-import com.dkt.userservice.dto.RegisterRequest;
-import com.dkt.userservice.dto.UpdateProfileRequest;
-import com.dkt.userservice.dto.UserDto;
+import com.dkt.userservice.dto.*;
 import com.dkt.userservice.entity.User;
 import com.dkt.userservice.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -79,4 +78,43 @@ public class UserController {
         userService.deactivateUserAccount(principal.getName());
         return ResponseEntity.ok("Tài khoản của bạn đã được vô hiệu hóa.");
     }
+
+    // API tìm tất cả người dùng, chỉ dành cho người có vai trò QUAN_LY
+    @GetMapping("/find")
+    @PreAuthorize("hasRole('QUAN_LY')")
+    public ResponseEntity<List<UserDto>> getAllUsers() {
+        List<UserDto> users = userService.findAllUsers();
+        return ResponseEntity.ok(users);
+    }
+
+    // API này chỉ dành cho người có vai trò QUAN_LY
+    @GetMapping("/find/{id}")
+    @PreAuthorize("hasRole('QUAN_LY')")
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+        User user = userService.findById(id);
+        return ResponseEntity.ok(userService.convertToDto(user));
+    }
+
+    /**
+     * API nội bộ (inter-service) để các service khác có thể lấy thông tin
+     * cơ bản của user dựa trên email.
+     * Endpoint: GET /api/users/by-email?email=...
+     */
+    @GetMapping("/by-email")
+    public ResponseEntity<UserSimpleDto> getUserByEmail(@RequestParam("email") String email) {
+        try {
+            UserSimpleDto userDto = userService.findSimpleUserByEmail(email);
+            return ResponseEntity.ok(userDto);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // API để các service khác lấy thông tin user qua ID
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getUserByIdForService(@PathVariable Long id) {
+        User user = userService.findById(id); // Giả sử đã có hàm này trong service
+        return ResponseEntity.ok(userService.convertToDto(user));
+    }
+
 }
