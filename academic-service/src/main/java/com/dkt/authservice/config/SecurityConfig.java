@@ -1,33 +1,38 @@
 package com.dkt.authservice.config;
-import com.dkt.authservice.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
 @Configuration
-@EnableMethodSecurity
 public class SecurityConfig {
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+
+    /**
+     * Vẫn cần PasswordEncoder để mã hóa mật khẩu khi đăng ký và đổi mật khẩu.
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
-
+    /**
+     * Cấu hình bảo mật tối giản.
+     * Vì Gateway đã xác thực và được tin tưởng, service này có thể cho phép
+     * tất cả các request đã được chuyển tiếp đi qua.
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/health", "/actuator/info", "/actuator/prometheus").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
+                // Tắt CSRF
+                .csrf(AbstractHttpConfigurer::disable)
+                // Bắt đầu định nghĩa quy tắc
+                .authorizeHttpRequests(authorize -> authorize
+                        // Cho phép TẤT CẢ các request đi qua mà không cần kiểm tra thêm
+                        .anyRequest().permitAll()
+                );
         return http.build();
     }
-
 }

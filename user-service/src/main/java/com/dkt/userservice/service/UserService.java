@@ -2,9 +2,11 @@ package com.dkt.userservice.service;
 
 import com.dkt.userservice.dto.*;
 import com.dkt.userservice.entity.Role;
+import com.dkt.userservice.entity.Student;
 import com.dkt.userservice.entity.User;
 import com.dkt.userservice.entity.UserRole;
 import com.dkt.userservice.repository.RoleRepository;
+import com.dkt.userservice.repository.StudentRepository;
 import com.dkt.userservice.repository.UserRepository;
 import com.dkt.userservice.repository.UserRoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,16 +21,22 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
 
+    private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository uRepo, RoleRepository rRepo, UserRoleRepository urRepo, PasswordEncoder encoder) {
+    public UserService(UserRepository uRepo,
+                       RoleRepository rRepo,
+                       UserRoleRepository urRepo,
+                       PasswordEncoder encoder,
+                       StudentRepository sRepo) {
         this.userRepository = uRepo;
         this.roleRepository = rRepo;
         this.userRoleRepository = urRepo;
         this.passwordEncoder = encoder;
+        this.studentRepository = sRepo;
     }
 
     @Transactional
@@ -129,6 +137,24 @@ public class UserService {
         return dto;
     }
 
+    public StudentProfileDto findStudentProfileByUserId(Long userId) {
+        Student student = studentRepository.findByUserId(userId) // <-- Thêm method này vào StudentRepository
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ học viên cho user ID: " + userId));
+
+        return convertToDto(student); // Thêm hàm tiện ích convertToDto
+    }
+
+    private StudentProfileDto convertToDto(Student student) {
+        StudentProfileDto dto = new StudentProfileDto();
+        dto.setId(student.getId());
+        dto.setUserId(student.getUserId());
+        dto.setStudentCode(student.getStudentCode());
+        dto.setDateOfBirth(student.getDateOfBirth());
+        dto.setPhoneNumber(student.getPhoneNumber());
+        dto.setAddress(student.getAddress());
+        return dto;
+    }
+
     public List<UserDto> findAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::convertToDto)
@@ -143,4 +169,6 @@ public class UserService {
         User user = findUserByEmail(email); // Tái sử dụng hàm đã có
         return new UserSimpleDto(user.getId(), user.getEmail(), user.getFullName());
     }
+
+
 }

@@ -1,5 +1,6 @@
 package com.dkt.authservice.controller;
 
+import com.dkt.authservice.client.StudentProfileDto;
 import com.dkt.authservice.client.UserClient;
 import com.dkt.authservice.client.UserDto;
 import com.dkt.authservice.dto.*;
@@ -20,65 +21,92 @@ public class AcademicController {
 
     public AcademicController(AcademicService academicService, UserClient userClient) {
         this.academicService = academicService;
-        this.userClient = userClient;
+        this.userClient = userClient; // Gán giá trị
     }
 
     // =============================================
     // API CHO BÀI TẬP (ASSIGNMENT)
     // =============================================
 
+    /**
+     * API để tạo bài tập mới.
+     * Yêu cầu Header "X-User-Id" chứa ID của giáo viên/quản lý.
+     * Việc kiểm tra vai trò (có phải GV/QL không) được Gateway đảm nhiệm.
+     */
     @PostMapping("/assignments")
-    @PreAuthorize("hasAnyRole('ROLE_GIAO_VIEN', 'ROLE_QUAN_LY')")
-    public ResponseEntity<?> createAssignment(@RequestBody AssignmentDto dto, Principal principal) {
+    public ResponseEntity<?> createAssignment(@RequestBody AssignmentDto dto,
+                                              @RequestHeader("X-User-Id") Long teacherId) {
         try {
-            Long teacherId = getUserIdFromPrincipal(principal);
-            return ResponseEntity.ok(academicService.createAssignment(dto, teacherId));
+            AssignmentDto createdAssignment = academicService.createAssignment(dto, teacherId);
+            return ResponseEntity.ok(createdAssignment);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @GetMapping("/classrooms/{classroomId}/assignments")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<AssignmentDto>> getAssignmentsByClassroom(@PathVariable Long classroomId) {
-        return ResponseEntity.ok(academicService.findAssignmentsByClassroom(classroomId));
-    }
+    /**
+     * API để lấy tất cả bài tập của một lớp học cụ thể.
+     */
 
     // =============================================
     // API CHO BÀI NỘP (SUBMISSION)
     // =============================================
 
+
+    // API cho Học viên nộp bài
     @PostMapping("/submissions")
     @PreAuthorize("hasRole('ROLE_HOC_VIEN')")
     public ResponseEntity<?> submitAssignment(Principal principal, @RequestBody SubmissionRequest request) {
         try {
-            Long studentId = getUserIdFromPrincipal(principal);
-            return ResponseEntity.ok(academicService.submitAssignment(studentId, request));
+            Long studentId = getStudentIdFromPrincipal(principal);
+            SubmissionDto submissionDto = academicService.submitAssignment(studentId, request);
+            return ResponseEntity.ok(submissionDto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
+    // API cho Học viên xem lại bài nộp
+
+
+    // --- HÀM HELPER ĐƯỢC NÂNG CẤP ---
+    private Long getStudentIdFromPrincipal(Principal principal) {
+        if (principal == null || principal.getName() == null) {
+            throw new IllegalStateException("Không thể xác định người dùng đã được xác thực.");
+        }
+        String email = principal.getName();
+        UserDto user = userClient.getUserByEmail(email);
+        if (user == null || user.getId() == null) {
+            throw new RuntimeException("Không tìm thấy thông tin người dùng với email: " + email);
+        }
+        StudentProfileDto studentProfile = userClient.getStudentProfileByUserId(user.getId());
+        if (studentProfile == null || studentProfile.getId() == null) {
+            throw new RuntimeException("Không tìm thấy hồ sơ học viên cho người dùng: " + email);
+        }
+        return studentProfile.getId();
+    }
+
+    /**
+     * API cho giáo viên chấm điểm.
+     * Yêu cầu Header "X-User-Id" chứa ID của giáo viên.
+     */
     @PutMapping("/submissions/{id}/grade")
-    @PreAuthorize("hasAnyRole('ROLE_GIAO_VIEN', 'ROLE_QUAN_LY')")
-    public ResponseEntity<?> gradeSubmission(@PathVariable Long id, @RequestBody GradeRequest request, Principal principal) {
+    public ResponseEntity<?> gradeSubmission(@PathVariable Long id,
+                                             @RequestBody GradeRequest request,
+                                             @RequestHeader("X-User-Id") Long teacherId) {
         try {
-            Long teacherId = getUserIdFromPrincipal(principal);
-            return ResponseEntity.ok(academicService.gradeSubmission(id, request, teacherId));
+            SubmissionDto submissionDto = academicService.gradeSubmission(id, request, teacherId);
+            return ResponseEntity.ok(submissionDto);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @GetMapping("/assignments/{assignmentId}/my-submission")
-    @PreAuthorize("hasRole('ROLE_HOC_VIEN')")
-    public ResponseEntity<SubmissionDto> getMySubmission(@PathVariable Long assignmentId, Principal principal) {
-        Long studentId = getUserIdFromPrincipal(principal);
-        return ResponseEntity.ok(academicService.getSubmissionForStudent(assignmentId, studentId));
-    }
 
+    /**
+     * API cho xem tất cả bài nộp của một bài tập.
+     */
     @GetMapping("/assignments/{assignmentId}/submissions")
-    @PreAuthorize("hasAnyRole('ROLE_GIAO_VIEN', 'ROLE_QUAN_LY')")
     public ResponseEntity<List<SubmissionDto>> getSubmissionsForAssignment(@PathVariable Long assignmentId) {
         return ResponseEntity.ok(academicService.findSubmissionsByAssignment(assignmentId));
     }
@@ -87,32 +115,18 @@ public class AcademicController {
     // API CHO THÔNG BÁO (NOTIFICATION)
     // =============================================
 
+    /**
+     * API để tạo thông báo mới.
+     * Yêu cầu Header "X-User-Id" chứa ID của người gửi.
+     */
     @PostMapping("/notifications")
-    @PreAuthorize("hasAnyRole('ROLE_GIAO_VIEN', 'ROLE_QUAN_LY')")
-    public ResponseEntity<NotificationDto> createNotification(@RequestBody NotificationDto dto, Principal principal) {
-        Long senderId = getUserIdFromPrincipal(principal);
+    public ResponseEntity<NotificationDto> createNotification(@RequestBody NotificationDto dto,
+                                                              @RequestHeader("X-User-Id") Long senderId) {
         return ResponseEntity.ok(academicService.createNotification(dto, senderId));
     }
 
-    @GetMapping("/classrooms/{classroomId}/notifications")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<NotificationDto>> getNotificationsForClassroom(@PathVariable Long classroomId) {
-        return ResponseEntity.ok(academicService.findNotificationsByClassroom(classroomId));
-    }
+    /**
+     * API để xem các thông báo của một lớp học.
+     */
 
-    // =============================================
-    // HÀM HELPER
-    // =============================================
-
-    private Long getUserIdFromPrincipal(Principal principal) {
-        if (principal == null || principal.getName() == null) {
-            throw new IllegalStateException("Không thể xác định người dùng đã được xác thực.");
-        }
-        String email = principal.getName();
-        UserDto user = userClient.getUserByEmail(email);
-        if (user == null || user.getId() == null) {
-            throw new RuntimeException("Không tìm thấy thông tin người dùng tương ứng với email: " + email);
-        }
-        return user.getId();
-    }
 }

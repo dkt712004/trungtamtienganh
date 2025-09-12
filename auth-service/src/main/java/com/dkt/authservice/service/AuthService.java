@@ -12,6 +12,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,38 +21,34 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserRepository userRepository; // <-- Thêm UserRepository
+    private final UserRepository userRepository;
 
-    public AuthService(AuthenticationManager authenticationManager,
-                       JwtTokenProvider jwtTokenProvider,
-                       UserRepository userRepository) { // <-- Sửa constructor
-        this.authenticationManager = authenticationManager;
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.userRepository = userRepository;
+    public AuthService(AuthenticationManager am, JwtTokenProvider jwt, UserRepository userRepo) {
+        this.authenticationManager = am;
+        this.jwtTokenProvider = jwt;
+        this.userRepository = userRepo;
     }
 
-    // Thay đổi kiểu trả về từ String sang AuthenticationResult
     public AuthenticationResult login(LoginRequest loginRequest) {
-
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
         );
-
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 1. Tạo token
-        String token = jwtTokenProvider.generateToken(authentication);
-
-        // 2. Lấy lại thông tin User đầy đủ từ database
+        // Lấy lại thông tin User đầy đủ từ DB
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Lỗi không mong muốn: Không tìm thấy user sau khi xác thực."));
+                .orElseThrow(() -> new RuntimeException("Lỗi: Không tìm thấy user sau khi xác thực."));
 
-        // 3. Lấy danh sách vai trò
-        Set<String> roles = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toSet());
+        // --- LOGIC MỚI ---
+        // Lấy danh sách tên vai trò (List<String>) từ DB
+        List<String> roles = userRepository.findRolesByEmail(user.getEmail());
 
-        // 4. Trả về đối tượng kết quả chứa tất cả thông tin
-        return new AuthenticationResult(token, user, roles);
+        // Gọi đến JwtTokenProvider với đầy đủ thông tin
+        String token = jwtTokenProvider.generateToken(user.getId(), user.getEmail(), roles);
+        // -----------------
+
+        // Chuyển đổi List<String> sang Set<String> để trả về
+        Set<String> rolesSet = roles.stream().collect(Collectors.toSet());
+        return new AuthenticationResult(token, user, rolesSet);
     }
 }

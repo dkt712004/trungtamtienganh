@@ -58,10 +58,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         // --- KẾT THÚC LOGIC MỚI ---
 
         // 6. Trả về đối tượng UserDetails hoàn chỉnh
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPassword(),
-                authorities // <-- Danh sách quyền được lấy thủ công
-        );
+        return new CustomUserDetails(user.getId(), user.getEmail(), user.getPassword(), authorities);
     }
 }
