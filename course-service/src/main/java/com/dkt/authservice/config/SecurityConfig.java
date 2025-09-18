@@ -27,11 +27,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // Tắt CSRF
                 .csrf(AbstractHttpConfigurer::disable)
-                // Bắt đầu định nghĩa quy tắc
                 .authorizeHttpRequests(authorize -> authorize
-                        // Cho phép TẤT CẢ các request đi qua mà không cần kiểm tra thêm
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
                         .anyRequest().permitAll()
                 );
         return http.build();

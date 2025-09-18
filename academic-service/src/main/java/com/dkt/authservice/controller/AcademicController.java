@@ -5,6 +5,9 @@ import com.dkt.authservice.client.UserClient;
 import com.dkt.authservice.client.UserDto;
 import com.dkt.authservice.dto.*;
 import com.dkt.authservice.service.AcademicService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +17,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Academic API", description = "Các API quản lý hoạt động học thuật (Bài tập, Bài nộp, Thông báo)")
+@SecurityRequirement(name = "bearerAuth")
 public class AcademicController {
 
     private final AcademicService academicService;
@@ -24,15 +29,14 @@ public class AcademicController {
         this.userClient = userClient; // Gán giá trị
     }
 
-    // =============================================
     // API CHO BÀI TẬP (ASSIGNMENT)
-    // =============================================
 
     /**
      * API để tạo bài tập mới.
      * Yêu cầu Header "X-User-Id" chứa ID của giáo viên/quản lý.
      * Việc kiểm tra vai trò (có phải GV/QL không) được Gateway đảm nhiệm.
      */
+    @Operation(summary = "Tạo bài tập mới", description = "Chỉ Giáo viên hoặc Quản lý mới có thể tạo bài tập cho một lớp học.")
     @PostMapping("/assignments")
     public ResponseEntity<?> createAssignment(@RequestBody AssignmentDto dto,
                                               @RequestHeader("X-User-Id") Long teacherId) {
@@ -54,6 +58,7 @@ public class AcademicController {
 
 
     // API cho Học viên nộp bài
+    @Operation(summary = "Học viên nộp bài", description = "Chỉ người có vai trò HOC_VIEN mới có thể thực hiện.")
     @PostMapping("/submissions")
     @PreAuthorize("hasRole('ROLE_HOC_VIEN')")
     public ResponseEntity<?> submitAssignment(Principal principal, @RequestBody SubmissionRequest request) {
@@ -90,6 +95,7 @@ public class AcademicController {
      * API cho giáo viên chấm điểm.
      * Yêu cầu Header "X-User-Id" chứa ID của giáo viên.
      */
+    @Operation(summary = "Giáo viên chấm điểm bài nộp", description = "Chỉ Giáo viên hoặc Quản lý của lớp học đó mới có thể chấm điểm.")
     @PutMapping("/submissions/{id}/grade")
     public ResponseEntity<?> gradeSubmission(@PathVariable Long id,
                                              @RequestBody GradeRequest request,
@@ -106,6 +112,7 @@ public class AcademicController {
     /**
      * API cho xem tất cả bài nộp của một bài tập.
      */
+    @Operation(summary = "Giáo viên hoặc quản lý xem tất cả bài nộp của một bài tập.", description = "Chỉ Giáo viên hoặc Quản lý của lớp học đó mới có thể xem.")
     @GetMapping("/assignments/{assignmentId}/submissions")
     public ResponseEntity<List<SubmissionDto>> getSubmissionsForAssignment(@PathVariable Long assignmentId) {
         return ResponseEntity.ok(academicService.findSubmissionsByAssignment(assignmentId));
@@ -119,14 +126,12 @@ public class AcademicController {
      * API để tạo thông báo mới.
      * Yêu cầu Header "X-User-Id" chứa ID của người gửi.
      */
+    @Operation(summary = "Tạo thong bao moi", description = "Chỉ Giáo viên hoặc Quản lý co the tao thong bao moi.")
     @PostMapping("/notifications")
     public ResponseEntity<NotificationDto> createNotification(@RequestBody NotificationDto dto,
                                                               @RequestHeader("X-User-Id") Long senderId) {
         return ResponseEntity.ok(academicService.createNotification(dto, senderId));
     }
 
-    /**
-     * API để xem các thông báo của một lớp học.
-     */
 
 }

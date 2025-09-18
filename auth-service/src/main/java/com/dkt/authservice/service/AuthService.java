@@ -5,10 +5,11 @@ import com.dkt.authservice.dto.LoginRequest;
 import com.dkt.authservice.entity.User;
 import com.dkt.authservice.repository.UserRepository;
 import com.dkt.authservice.security.jwt.JwtTokenProvider;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -22,11 +23,16 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final MessageSource messageSource;
 
-    public AuthService(AuthenticationManager am, JwtTokenProvider jwt, UserRepository userRepo) {
+    public AuthService(AuthenticationManager am,
+                       JwtTokenProvider jwt,
+                       UserRepository userRepo,
+                       MessageSource messageSource) {
         this.authenticationManager = am;
         this.jwtTokenProvider = jwt;
         this.userRepository = userRepo;
+        this.messageSource = messageSource;
     }
 
     public AuthenticationResult login(LoginRequest loginRequest) {
@@ -37,7 +43,9 @@ public class AuthService {
 
         // Lấy lại thông tin User đầy đủ từ DB
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Lỗi: Không tìm thấy user sau khi xác thực."));
+                .orElseThrow(() -> new RuntimeException(
+                        messageSource.getMessage("error.user.notfound.after.auth", null, LocaleContextHolder.getLocale())
+                ));
 
         // --- LOGIC MỚI ---
         // Lấy danh sách tên vai trò (List<String>) từ DB

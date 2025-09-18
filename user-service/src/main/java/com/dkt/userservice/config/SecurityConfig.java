@@ -19,11 +19,8 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * Cấu hình bảo mật tối giản.
-     * Vì Gateway đã xác thực và được tin tưởng, service này có thể cho phép
-     * tất cả các request đã được chuyển tiếp đi qua.
-     */
+
+    // Gateway da duoc xac thuc nen service nay co th cho phep tat ca cac request da duoc chuyen tiep di qua
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -31,7 +28,12 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 // Bắt đầu định nghĩa quy tắc
                 .authorizeHttpRequests(authorize -> authorize
-                        // Cho phép TẤT CẢ các request đi qua mà không cần kiểm tra thêm
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        // Cho phep tat ca cac request di qua ma khong can kiem tra
                         .anyRequest().permitAll()
                 );
         return http.build();
