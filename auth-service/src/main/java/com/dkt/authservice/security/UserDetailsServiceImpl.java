@@ -18,15 +18,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@Service
+@Service // Đánh dấu đây là một Spring Bean
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
 
-    // Sửa lại constructor để nhận thêm UserRoleRepository
-    public UserDetailsServiceImpl(UserRepository userRepository, RoleRepository roleRepository, UserRoleRepository userRoleRepository) {
+    public UserDetailsServiceImpl(UserRepository userRepository,
+                                  RoleRepository roleRepository,
+                                  UserRoleRepository userRoleRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
@@ -35,29 +36,27 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        // 1. Tìm user trong DB
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with email: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("..."));
 
-        // --- LOGIC MỚI ĐỂ LẤY VAI TRÒ ---
-        // 2. Dùng userId để tìm tất cả các bản ghi user-role tương ứng
+        // Logic "join" thủ công để lấy vai trò
         List<UserRole> userRoles = userRoleRepository.findByUserId(user.getId());
-
-        // 3. Từ các bản ghi user-role, trích xuất ra danh sách các roleId
-        List<Integer> roleIds = userRoles.stream()
-                .map(UserRole::getRoleId)
-                .toList();
-
-        // 4. Dùng danh sách roleId để tìm tất cả các đối tượng Role
+        List<Integer> roleIds = userRoles.stream().map(UserRole::getRoleId).toList();
         List<Role> roles = roleRepository.findAllById(roleIds);
 
-        // 5. Chuyển đổi danh sách Role thành danh sách GrantedAuthority mà Spring Security cần
         Set<GrantedAuthority> authorities = roles.stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))
                 .collect(Collectors.toSet());
-        // --- KẾT THÚC LOGIC MỚI ---
 
-        // 6. Trả về đối tượng UserDetails hoàn chỉnh
-        return new CustomUserDetails(user.getId(), user.getEmail(), user.getPassword(), authorities);
+        // TẠO RA một đối tượng UserDetails mới từ thông tin của User Entity
+        return new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                user.isActive(), // isEnabled
+                true, // isAccountNonExpired
+                true, // isCredentialsNonExpired
+                true, // isAccountNonLocked
+                authorities
+        );
     }
 }

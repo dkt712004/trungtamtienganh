@@ -8,11 +8,14 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set; // Import Set
+import java.util.stream.Collectors; // Import Collectors
 
 @Entity
 @Table(name = "users")
 @Data
 public class User implements UserDetails {
+
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         private Long id;
@@ -27,25 +30,80 @@ public class User implements UserDetails {
         private String fullName;
 
         @Column(name = "is_active")
-        private Boolean isActive;
+        private boolean isActive; // Dùng kiểu boolean nguyên thủy
 
-        // dùng JWT mặc định
-//        Đây là phương thức bắt buộc khi implement interface UserDetails của Spring Security.
-//        Nó trả về danh sách quyền (authorities/roles) mà user này có.
-//        Trong code của bạn: luôn trả về duy nhất một quyền "ROLE_USER".
-//                → Nghĩa là bất kỳ user nào trong DB khi đăng nhập thành công cũng sẽ có role "ROLE_USER" mặc định.
+        // Thêm lại mối quan hệ với Role để có thể lấy vai trò thật
+        @ManyToMany(fetch = FetchType.EAGER)
+        @JoinTable(name = "user_roles",
+                joinColumns = @JoinColumn(name = "user_id"),
+                inverseJoinColumns = @JoinColumn(name = "role_id"))
+        private Set<Role> roles;
+
+        // --- CÁC PHƯƠNG THỨC BẮT BUỘC CỦA UserDetails ---
+
+        /**
+         * NÂNG CẤP: Lấy vai trò thật từ database thay vì hardcode.
+         */
         @Override
         public Collection<? extends GrantedAuthority> getAuthorities() {
-                return Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"));
+                if (roles == null) {
+                        return Collections.emptyList();
+                }
+                return roles.stream()
+                        .map(role -> new SimpleGrantedAuthority(role.getName()))
+                        .collect(Collectors.toList());
         }
 
+        /**
+         * Trả về mật khẩu đã được mã hóa.
+         * BỎ "{noop}" đi vì chúng ta đang dùng BCryptPasswordEncoder.
+         */
         @Override
         public String getPassword() {
-                return "{noop}" + password; // chả đúng định dạng token
+                return password;
         }
 
+        /**
+         * Trả về username (chính là email).
+         */
         @Override
         public String getUsername() {
-                return getEmail();
+                return email;
+        }
+
+        /**
+         * THÊM VÀO: Kiểm tra tài khoản có hết hạn không.
+         * Luôn trả về true để đơn giản hóa.
+         */
+        @Override
+        public boolean isAccountNonExpired() {
+                return true;
+        }
+
+        /**
+         * THÊM VÀO: Kiểm tra tài khoản có bị khóa không.
+         * Luôn trả về true để đơn giản hóa.
+         */
+        @Override
+        public boolean isAccountNonLocked() {
+                return true;
+        }
+
+        /**
+         * THÊM VÀO: Kiểm tra thông tin xác thực (mật khẩu) có hết hạn không.
+         * Luôn trả về true để đơn giản hóa.
+         */
+        @Override
+        public boolean isCredentialsNonExpired() {
+                return true;
+        }
+
+        /**
+         * THÊM VÀO: Kiểm tra tài khoản có được kích hoạt không.
+         * Phương thức này sẽ trả về giá trị của trường 'isActive'.
+         */
+        @Override
+        public boolean isEnabled() {
+                return this.isActive;
         }
 }

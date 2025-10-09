@@ -47,15 +47,9 @@ public class AuthService {
                         messageSource.getMessage("error.user.notfound.after.auth", null, LocaleContextHolder.getLocale())
                 ));
 
-        // --- LOGIC MỚI ---
-        // Lấy danh sách tên vai trò (List<String>) từ DB
+
         List<String> roles = userRepository.findRolesByEmail(user.getEmail());
-
-        // Gọi đến JwtTokenProvider với đầy đủ thông tin
         String token = jwtTokenProvider.generateToken(user.getId(), user.getEmail(), roles);
-        // -----------------
-
-        // Chuyển đổi List<String> sang Set<String> để trả về
         Set<String> rolesSet = roles.stream().collect(Collectors.toSet());
         return new AuthenticationResult(token, user, rolesSet);
     }
