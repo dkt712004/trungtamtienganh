@@ -11,17 +11,31 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
+    /**
+     * Vẫn cần PasswordEncoder để mã hóa mật khẩu khi đăng ký và đổi mật khẩu.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // service này có thể cho phép tất cả request đi qua
+
+    // Gateway da duoc xac thuc nen service nay co th cho phep tat ca cac request da duoc chuyen tiep di qua
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable)
-                .cors(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        http
+                // Tắt CSRF
+                .csrf(AbstractHttpConfigurer::disable)
+                // Bắt đầu định nghĩa quy tắc
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        // Cho phep tat ca cac request di qua ma khong can kiem tra
+                        .anyRequest().permitAll()
+                );
         return http.build();
     }
 }
